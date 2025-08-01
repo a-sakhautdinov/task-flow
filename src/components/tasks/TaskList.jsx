@@ -10,22 +10,33 @@
  * - Provides task editing capability with validation
  * - Implements localStorage for persistent storage and cross-component data sharing
  * - Includes loading, error, and empty states with appropriate UI feedback
+ * - Task filtering by completion status and search by title
  * 
  * @author Senior Full-Stack Engineer
  * @version 1.1.0
  */
 
 import React, { useState, useEffect } from 'react';
-import { FaCheck, FaEdit, FaSpinner, FaExclamationTriangle, FaCalendarAlt, FaFlag } from 'react-icons/fa';
+import { FaCheck, FaEdit, FaSpinner, FaExclamationTriangle, FaCalendarAlt, FaFlag, FaSearch, FaFilter } from 'react-icons/fa';
+import useFilters from '../../hooks/useFilters';
+import BeautifulSelect from '../common/BeautifulSelect';
 
 const TaskList = () => {
   // State management with proper initialization
   const [tasks, setTasks] = useState([]);
-  const [filteredTasks, setFilteredTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', description: '' });
+
+  const {
+    statusFilter,
+    searchQuery,
+    filteredTasks,
+    setStatusFilter,
+    setSearchQuery,
+    clearFilters
+  } = useFilters(tasks);
 
   /**
    * Load tasks from localStorage or initialize with mock data
@@ -44,7 +55,6 @@ const TaskList = () => {
           // Parse and use stored tasks
           const parsedTasks = JSON.parse(storedTasks);
           setTasks(parsedTasks);
-          setFilteredTasks(parsedTasks);
         } else {
           // Initialize with mock data if no stored tasks exist
           const mockTasks = [
@@ -90,7 +100,6 @@ const TaskList = () => {
           localStorage.setItem('tasks', JSON.stringify(mockTasks));
           
           setTasks(mockTasks);
-          setFilteredTasks(mockTasks);
         }
         
         setError(null);
@@ -110,7 +119,6 @@ const TaskList = () => {
         try {
           const updatedTasks = JSON.parse(e.newValue || '[]');
           setTasks(updatedTasks);
-          setFilteredTasks(updatedTasks);
         } catch (err) {
           console.error('Error parsing tasks from storage:', err);
         }
@@ -145,7 +153,6 @@ const TaskList = () => {
     
     // Update local state
     setTasks(updatedTasks);
-    setFilteredTasks(updatedTasks);
     
     // Persist to localStorage for cross-component sharing
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
@@ -210,7 +217,6 @@ const TaskList = () => {
     
     // Update local state
     setTasks(updatedTasks);
-    setFilteredTasks(updatedTasks);
     setEditingTask(null);
     
     // Persist to localStorage for cross-component sharing
@@ -310,6 +316,59 @@ const TaskList = () => {
     <div className="bg-white p-4 rounded-lg shadow max-h-96 overflow-y-auto">
       <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Your Tasks</h3>
       
+      <div className="mb-4 space-y-3">
+        <div className="flex space-x-1">
+          <div className="relative flex-1">
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" aria-hidden="true" />
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-gray-900 placeholder-gray-500"
+              aria-label="Search tasks by title or description"
+            />
+          </div>
+      
+          <div className="w-30">
+            <BeautifulSelect
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: 'all', label: 'All Tasks' },
+                { value: 'complete', label: 'Completed' },
+                { value: 'incomplete', label: 'Incomplete' }
+              ]}
+              placeholder="Filter by status"
+            />
+          </div>
+        </div>
+        
+        <div className="text-xs text-gray-500">
+          Showing {filteredTasks.length} of {tasks.length} tasks
+          {(statusFilter !== 'all' || searchQuery.trim()) && (
+            <button
+              onClick={clearFilters}
+              className="ml-2 text-blue-500 hover:text-blue-700 underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+      
+      {filteredTasks.length === 0 && tasks.length > 0 && (
+        <div className="text-center text-gray-500 py-4">
+          <p>No tasks match your current filters.</p>
+          <button
+            onClick={clearFilters}
+            className="mt-2 text-blue-500 hover:text-blue-700 underline"
+          >
+            Clear all filters
+          </button>
+        </div>
+      )}
+      
       <ul className="space-y-3" aria-label="Task list">
         {filteredTasks.map((task) => (
           <li key={task._id} className="border-b pb-3">
@@ -323,7 +382,7 @@ const TaskList = () => {
                   name="title"
                   value={editForm.title}
                   onChange={handleInputChange}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900 placeholder-gray-500"
                   placeholder="Task title"
                 />
                 
@@ -333,7 +392,7 @@ const TaskList = () => {
                   name="description"
                   value={editForm.description}
                   onChange={handleInputChange}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900 placeholder-gray-500"
                   placeholder="Task description"
                   rows="2"
                 ></textarea>
